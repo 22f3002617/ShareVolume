@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C.H. Robinson Share Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 600px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .data {
+            display: flex;
+            justify-content: space-between;
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="share-entity-name">C.H. Robinson</h1>
+    <div class="data">
+        <div>
+            <div class="label">Maximum Shares Outstanding</div>
+            <div>Value: <span id="share-max-value"></span></div>
+            <div>Fiscal Year: <span id="share-max-fy"></span></div>
+        </div>
+        <div>
+            <div class="label">Minimum Shares Outstanding</div>
+            <div>Value: <span id="share-min-value"></span></div>
+            <div>Fiscal Year: <span id="share-min-fy"></span></div>
+        </div>
+    </div>
+    <script>
+        (async function() {
+            async function fetchData(CIK) {
+                const response = await fetch(`https://data.sec.gov/api/xbrl/companyconcept/${CIK}/dei/EntityCommonStockSharesOutstanding.json`, {
+                    headers: { 
+                        'User-Agent': 'YourUserAgent - CompanyNameOrDeveloperContact - MyAppName/1.0'
+                    }
+                });
+                return response.json();
+            }
+
+            function processSharesData(data) {
+                const shares = data.units.shares.filter(entry => entry.fy > "2020" && !isNaN(entry.val));
+                let max = { val: Number.NEGATIVE_INFINITY, fy: '' };
+                let min = { val: Number.POSITIVE_INFINITY, fy: '' };
+
+                shares.forEach(entry => {
+                    if (entry.val > max.val) {
+                        max = { val: entry.val, fy: entry.fy };
+                    }
+                    if (entry.val < min.val) {
+                        min = { val: entry.val, fy: entry.fy };
+                    }
+                });
+
+                return {
+                    entityName: data.entityName,
+                    max: max,
+                    min: min
+                };
+            }
+
+            function updateDOM(data) {
+                document.querySelector('title').innerText = `${data.entityName} Share Data`;
+                document.getElementById('share-entity-name').innerText = data.entityName;
+                document.getElementById('share-max-value').innerText = data.max.val;
+                document.getElementById('share-max-fy').innerText = data.max.fy;
+                document.getElementById('share-min-value').innerText = data.min.val;
+                document.getElementById('share-min-fy').innerText = data.min.fy;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const CIK = urlParams.get('CIK') || '0001043277';
+
+            const rawData = await fetchData(CIK);
+            const processedData = processSharesData(rawData);
+            updateDOM(processedData);
+        })();
+    </script>
+</body>
+</html>
